@@ -5,11 +5,12 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-
+#include <string.h>
+#include <iostream>
 
 class Socket{
     public:
-      Socket(int type);//Constructor
+      Socket(int fd, int type);//Constructor
       int SetSocket(int value);
       int GetSocket();
       /*Seteamos en que puerto queremos escuchar y cuantos clientes podemos mantener
@@ -18,7 +19,8 @@ class Socket{
       //Elije la direccion que mejor funcione para poder conectarse
       int Connect(const char* host_name, char* port);
       //Acepta un cliente
-      int Accept(socket_t* accepted_socket);
+      //int Accept(Socket &accepted_socket);
+      Socket* Accept();
       //Envia el buffer a traves de la red
       int Send(const char* buffer, size_t length);
       //Recibe informacion a traves de la red y lo guarda en el buffer
@@ -27,9 +29,11 @@ class Socket{
       void Shutdown();
       //Destruye los elementos de la estructura
       virtual ~Socket();
+      // Socket(Socket&& other);
+      // Socket& operator=(Socket&& other);
     protected:
     private:
-      int socket;
+      int skt;
     	struct addrinfo hints;
 };
 

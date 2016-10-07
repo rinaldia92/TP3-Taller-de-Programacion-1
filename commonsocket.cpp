@@ -1,24 +1,22 @@
-#include "socket.h"
+#include "commonsocket.h"
 
 #define MAXLISTEN 20
 
-Socket::Socket(int type){
-   this->socket = 0;
-
+Socket::Socket(int fd, int type){
+  this->skt = fd;
   memset(&this->hints, 0, sizeof(struct addrinfo));
  	this->hints.ai_family = AF_INET;       /* IPv4 (or AF_INET6 for IPv6)     */
  	this->hints.ai_socktype = SOCK_STREAM; /* TCP  (or SOCK_DGRAM for UDP)    */
  	this->hints.ai_flags = type;     /* None (or AI_PASSIVE for server) */
-
-   return 0;
 }
+
 int Socket::SetSocket(int value){
-  this->socket = value;
+  this->skt = value;
   return 0;
 }
 
-int GetSocket(){
-  return this->socket;
+int Socket::GetSocket(){
+  return this->skt;
 }
 
 int Socket::BindAndListen(char* port){
@@ -28,20 +26,20 @@ int Socket::BindAndListen(char* port){
 
    s = getaddrinfo(NULL, port, &(this->hints), &ptr);
 
-   this->socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+   this->skt = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 
-   s = bind(this->socket, ptr->ai_addr, ptr->ai_addrlen);
+   s = bind(this->skt, ptr->ai_addr, ptr->ai_addrlen);
    if (s == -1) {
-      close(this->socket);
+      close(this->skt);
       freeaddrinfo(ptr);
       return 1;
    }
 
    freeaddrinfo(ptr);
 
-   s = listen(this->socket, MAXLISTEN);
+   s = listen(this->skt, MAXLISTEN);
    if (s == -1) {
-      close(this->socket);
+      close(this->skt);
       return 1;
    }
 
@@ -59,14 +57,14 @@ int Socket::Connect(const char* host_name, char* port){
    s = getaddrinfo(host_name, port, &(this->hints), &result);
 
    for (ptr = result; ptr != NULL && !are_we_connected; ptr = ptr->ai_next) {
-      this->socket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+      this->skt = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
 
-      if (this->socket == -1) {
+      if (this->skt == -1) {
          return 1;
       }else{
-         s = connect(this->socket, ptr->ai_addr, ptr->ai_addrlen);
+         s = connect(this->skt, ptr->ai_addr, ptr->ai_addrlen);
          if (s == -1) {
-            close(this->socket);
+            close(this->skt);
             return 1;
          }
          are_we_connected = (s != -1);
@@ -75,19 +73,32 @@ int Socket::Connect(const char* host_name, char* port){
    freeaddrinfo(result);
    return 0;
 }
+//
+// int Socket::Accept(Socket &accepted_socket){
+// //int Socket::Accept(){
+//    accepted_socket.SetSocket(accept(this->skt, NULL, NULL));
+//
+//    if (accepted_socket.GetSocket() == -1)
+//       return -1;
+//
+//
+//    return 0;
+// }
 
-int Socket::Accept(Socket &accepted_socket){
-   accepted_socket.SetSocket(accept(this->socket, NULL, NULL));
+Socket* Socket::Accept(){
+    int SocketFD = accept(this->skt, NULL, NULL);
 
-   if (accepted_socket.GetSocket() == -1)
-      return -1;
-
-   return 0;
+    if (SocketFD == -1){
+		    std::cerr << "ERROR AL ACEPTAR CONEXION. "
+					<< gai_strerror(SocketFD) << std::endl;
+		    //return NULL;
+	  }
+	  return new Socket(SocketFD,AI_PASSIVE);
 }
 
 int Socket::Send(const char* buffer, size_t length){
    int s;
-   int bytes_sent;
+   unsigned int bytes_sent;
    bool socket_error, remote_socket_closed;
 
    socket_error = false;
@@ -96,7 +107,7 @@ int Socket::Send(const char* buffer, size_t length){
    bytes_sent = 0;
 
    while (bytes_sent < length && !socket_error && !remote_socket_closed) {
-      s = send(this->socket, &buffer[bytes_sent],
+      s = send(this->skt, &buffer[bytes_sent],
           length - bytes_sent, MSG_NOSIGNAL);
 
       if (s < 0) {
@@ -120,20 +131,29 @@ int Socket::Receive(char* buffer, size_t length){
   char aux;
   strncpy(&aux,"",1);
   while (strcmp(&aux,"\n")!=0 && s>0){
-    s = recv(this->socket,&aux, 1, MSG_NOSIGNAL);
+    s = recv(this->skt,&aux, 1, MSG_NOSIGNAL);
     strncat(buffer,&aux,1);
   }
 
   return s;
 }
 
+// Socket::Socket(Socket&& other) {
+//     this->skt = std::move(other.skt);
+// }
+//
+//
+// Socket& Socket::operator=(Socket&& other) {
+//     this->skt = std::move(other.skt);
+//     return *this;
+// }
+//
+
 void Socket::Shutdown() {
-   shutdown(this->socket, SHUT_RDWR);
+   shutdown(this->skt, SHUT_RDWR);
 }
 
 Socket::~Socket(){
-  socket_shutdown(this);
-  close(this->socket);
-
-	return 0;
+  this->Shutdown();
+  close(this->skt);
 }
