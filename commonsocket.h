@@ -10,31 +10,35 @@
 
 class Socket{
     public:
-      Socket(int fd, int type);//Constructor
-      int SetSocket(int value);
-      int GetSocket();
-      /*Seteamos en que puerto queremos escuchar y cuantos clientes podemos mantener
-      en espera antes de aceptar a alguno*/
-      int BindAndListen(char* port);
-      //Elije la direccion que mejor funcione para poder conectarse
-      int Connect(const char* host_name, char* port);
-      //Acepta un cliente
-      //int Accept(Socket &accepted_socket);
-      Socket* Accept();
-      //Envia el buffer a traves de la red
-      int Send(const char* buffer, size_t length);
-      //Recibe informacion a traves de la red y lo guarda en el buffer
-      int Receive(char* buffer, size_t length);
-      //Cierra la conexion del socket
-      void Shutdown();
-      //Destruye los elementos de la estructura
-      virtual ~Socket();
-      // Socket(Socket&& other);
-      // Socket& operator=(Socket&& other);
-    protected:
+          explicit Socket(int type);//Constructor
+          /*Seteamos en que puerto queremos escuchar y cuantos clientes
+          podemos mantener en espera antes de aceptar a alguno*/
+          int BindAndListen(char* port);
+          //Elije la direccion que mejor funcione para poder conectarse
+          int Connect(const char* host_name, char* port);
+          //Acepta un cliente y devuelve un nuevo socket
+          Socket Accept();
+          //Envia el buffer a traves de la red
+          int Send(const unsigned char* buffer, size_t length);
+          //Recibe informacion a traves de la red y lo guarda en el buffer
+          int Receive(unsigned char* buffer, size_t length);
+          //Devuelve si el socket es valido
+          bool ValidSocket();
+
+          Socket(const Socket&) = delete;
+          Socket& operator=(const Socket&) = delete;
+          Socket(Socket&& other);
+          Socket& operator=(Socket&& other);
+          //Cierra la conexion del socket
+          void Shutdown();
+          //Destruye los elementos de la estructura
+          virtual ~Socket();
+
     private:
-      int skt;
-    	struct addrinfo hints;
+          Socket(int s,int type);
+          void uninit();
+          int skt;
+          struct addrinfo hints;
 };
 
 #endif

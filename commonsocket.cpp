@@ -2,21 +2,19 @@
 
 #define MAXLISTEN 20
 
-Socket::Socket(int fd, int type){
-  this->skt = fd;
+Socket::Socket(int type){
+   this->skt = 0;
   memset(&this->hints, 0, sizeof(struct addrinfo));
  	this->hints.ai_family = AF_INET;       /* IPv4 (or AF_INET6 for IPv6)     */
  	this->hints.ai_socktype = SOCK_STREAM; /* TCP  (or SOCK_DGRAM for UDP)    */
  	this->hints.ai_flags = type;     /* None (or AI_PASSIVE for server) */
 }
 
-int Socket::SetSocket(int value){
-  this->skt = value;
-  return 0;
-}
-
-int Socket::GetSocket(){
-  return this->skt;
+Socket::Socket(int s,int type):skt(s){
+  memset(&this->hints, 0, sizeof(struct addrinfo));
+ 	this->hints.ai_family = AF_INET;       /* IPv4 (or AF_INET6 for IPv6)     */
+ 	this->hints.ai_socktype = SOCK_STREAM; /* TCP  (or SOCK_DGRAM for UDP)    */
+ 	this->hints.ai_flags = type;     /* None (or AI_PASSIVE for server) */
 }
 
 int Socket::BindAndListen(char* port){
@@ -73,30 +71,14 @@ int Socket::Connect(const char* host_name, char* port){
    freeaddrinfo(result);
    return 0;
 }
-//
-// int Socket::Accept(Socket &accepted_socket){
-// //int Socket::Accept(){
-//    accepted_socket.SetSocket(accept(this->skt, NULL, NULL));
-//
-//    if (accepted_socket.GetSocket() == -1)
-//       return -1;
-//
-//
-//    return 0;
-// }
 
-Socket* Socket::Accept(){
-    int SocketFD = accept(this->skt, NULL, NULL);
-
-    if (SocketFD == -1){
-		    std::cerr << "ERROR AL ACEPTAR CONEXION. "
-					<< gai_strerror(SocketFD) << std::endl;
-		    //return NULL;
-	  }
-	  return new Socket(SocketFD,AI_PASSIVE);
+Socket Socket::Accept(){
+    int s = accept(this->skt, NULL, NULL);
+    Socket accepted_socket(s,AI_PASSIVE);
+    return accepted_socket;
 }
 
-int Socket::Send(const char* buffer, size_t length){
+int Socket::Send(const unsigned char* buffer, size_t length){
    int s;
    unsigned int bytes_sent;
    bool socket_error, remote_socket_closed;
@@ -126,34 +108,40 @@ int Socket::Send(const char* buffer, size_t length){
    }
 }
 
-int Socket::Receive(char* buffer, size_t length){
+int Socket::Receive(unsigned char* buffer, size_t length){
   int s = 1;
-  char aux;
-  strncpy(&aux,"",1);
-  while (strcmp(&aux,"\n")!=0 && s>0){
-    s = recv(this->skt,&aux, 1, MSG_NOSIGNAL);
-    strncat(buffer,&aux,1);
+  for (unsigned int i = 0; i < length && s > 0; ++i) {
+    s = recv(this->skt,&buffer[i], 1, MSG_NOSIGNAL);
   }
-
   return s;
 }
 
-// Socket::Socket(Socket&& other) {
-//     this->skt = std::move(other.skt);
-// }
-//
-//
-// Socket& Socket::operator=(Socket&& other) {
-//     this->skt = std::move(other.skt);
-//     return *this;
-// }
-//
-
-void Socket::Shutdown() {
-   shutdown(this->skt, SHUT_RDWR);
+bool Socket::ValidSocket() {
+    return (this->skt != -1);
 }
 
-Socket::~Socket(){
-  this->Shutdown();
-  close(this->skt);
+Socket::Socket(Socket&& other) : skt(other.skt) {
+    other.uninit();
+}
+
+Socket& Socket::operator=(Socket&& other){
+    this->skt = other.skt;
+    other.uninit();
+    return *this;
+}
+
+void Socket::uninit() {
+    this->skt = -1;
+}
+
+void Socket::Shutdown() {
+    if (this->skt != -1){
+        shutdown(this->skt, SHUT_RDWR);
+        close(this->skt);
+        uninit();
+    }
+}
+
+Socket::~Socket() {
+    Shutdown();
 }

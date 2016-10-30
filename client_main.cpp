@@ -1,25 +1,32 @@
 #include "clientServerproxy.h"
+#include "clientProcess.h"
+#include <tuple>
+#include <string>
+
 
 #define EXITO 0
 #define ERROR_CONEXION 1
 #define ARGUMENTOS_INVALIDOS 2
+#define DEFAULT 0
 
 int main(int argc, char *argv[]){
-  int s;
-  char mensaje[25] = "Enviando mensaje \n";
+    int s;
+    std::string archivo;
+    std::tuple<unsigned char,time_t,uint32_t,uint32_t> consulta(0,0,0,0);
+    Serverproxy serverproxy;
+    Process proc;
 
-  Serverproxy client;
+    s = serverproxy.Connect(argv[1],argv[2]);
 
-  s = client.Connect(argv[1],argv[2]);
+    if (s != 0){
+        return ERROR_CONEXION;
+    }
 
-  if (s!=0){
-    return ERROR_CONEXION;
-  }
+    while (getline(std::cin, archivo)){
+        consulta = proc.ProcesarArch(archivo);
+        serverproxy.SendCommand(consulta);
+        serverproxy.ReceiveAnswer();
+    }
 
-  client.Send(mensaje,strlen(mensaje));
-  s = 0;
-  while (s == 0){
-    s = client.Receive();
-  }
-  return 0;
+    return 0;
 }
